@@ -16,10 +16,11 @@
 // ============================================
 
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // ── Configuración de Firebase ──
 // REEMPLAZAR con tus credenciales de Firebase Console
@@ -34,11 +35,15 @@ const firebaseConfig = {
 console.log("Firebase Init with API Key:", firebaseConfig.apiKey);
 const app = initializeApp(firebaseConfig);
 
-// ── Auth con persistencia en AsyncStorage ──
-// Esto mantiene la sesión del usuario entre cierres de la app
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+// ── Auth con persistencia compatible con Web y Móvil ──
+let auth;
+if (Platform.OS === 'web') {
+  auth = getAuth(app); // Web maneja su propia persistencia (localStorage) por defecto
+} else {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+}
 
 // ── Firestore (Base de datos) ──
 const db = getFirestore(app);

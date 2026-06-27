@@ -34,10 +34,7 @@ export function useOrders(userId) {
     setLoading(true);
     setError(null);
     try {
-      const order = await OrderService.create({
-        ...orderData,
-        userId,
-      });
+      const order = await OrderService.create(userId, orderData);
       await loadOrders(); // Recargar lista
       return order;
     } catch (err) {
