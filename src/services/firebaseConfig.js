@@ -24,15 +24,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ── Configuración de Firebase ──
 // REEMPLAZAR con tus credenciales de Firebase Console
 const firebaseConfig = {
-  apiKey: 'TU_API_KEY_AQUI',
-  authDomain: 'tu-proyecto.firebaseapp.com',
-  projectId: 'tu-proyecto-id',
-  storageBucket: 'tu-proyecto.appspot.com',
-  messagingSenderId: '123456789',
-  appId: '1:123456789:web:abcdef123456',
+  apiKey: "AIzaSyDnMzDTJTfF2N8EjVth9APa--WkjUGZT8M",
+  authDomain: "naturapp-55ae6.firebaseapp.com",
+  projectId: "naturapp-55ae6",
+  storageBucket: "naturapp-55ae6.firebasestorage.app",
+  messagingSenderId: "840348356426",
+  appId: "1:840348356426:web:edfef53c3ae31b206afbb3"
 };
-
-// ── Inicializar Firebase ──
+console.log("Firebase Init with API Key:", firebaseConfig.apiKey);
 const app = initializeApp(firebaseConfig);
 
 // ── Auth con persistencia en AsyncStorage ──

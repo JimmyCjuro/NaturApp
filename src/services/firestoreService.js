@@ -11,6 +11,9 @@ import {
   query, where, orderBy, limit, startAfter, serverTimestamp,
 } from 'firebase/firestore';
 
+console.log("--- FIRESTORE SERVICE V2 ---");
+
+
 // ── Catálogo local (fallback cuando Firebase no está configurado) ──
 const LOCAL_PRODUCTS = [
   { id: '1', name: 'Maca Negra en Polvo', description: 'Maca negra orgánica de Junín. Superalimento andino rico en aminoácidos, vitaminas y minerales. Ideal para aumentar la energía y vitalidad.', price: 45.90, category: 'superfoods', categoryName: 'Superfoods', image: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=300&h=300&fit=crop', stock: 25, isActive: true, rating: 4.8, tags: ['energía', 'andino'], benefits: ['Aumenta la energía', 'Mejora la resistencia', 'Rico en hierro', 'Fortalece el sistema inmune'] },
@@ -54,18 +57,17 @@ export const ProductService = {
         q = query(
           collection(db, 'products'),
           where('isActive', '==', true),
-          where('category', '==', categoryFilter),
-          orderBy('name')
+          where('category', '==', categoryFilter)
         );
       } else {
         q = query(
           collection(db, 'products'),
-          where('isActive', '==', true),
-          orderBy('name')
+          where('isActive', '==', true)
         );
       }
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      return docs.sort((a, b) => a.name.localeCompare(b.name));
     } catch (err) {
       console.log('ProductService.getAll fallback:', err.message);
       let data = LOCAL_PRODUCTS;
@@ -113,7 +115,7 @@ export const ProductService = {
     const docRef = await addDoc(collection(db, 'products'), {
       ...productData,
       isActive: true,
-      createdAt: serverTimestamp(),
+      createdAt: new Date().toISOString(),
     });
     return { id: docRef.id, ...productData };
   },
@@ -121,7 +123,7 @@ export const ProductService = {
   // Actualizar producto
   update: async (id, data) => {
     const docRef = doc(db, 'products', id);
-    await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(docRef, { ...data, updatedAt: new Date().toISOString() });
     return { id, ...data };
   },
 
@@ -161,13 +163,14 @@ export const OrderService = {
         userId,
         items: orderData.items,
         total: orderData.total,
-        shippingAddress: orderData.shippingAddress,
+        shippingAddress: orderData.address || orderData.shippingAddress || '',
         paymentMethod: orderData.paymentMethod || 'cash',
         status: 'pending',
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
       });
       return { id: docRef.id, ...orderData, status: 'pending', createdAt: new Date().toISOString() };
     } catch (err) {
+      console.error("❌ ERROR EN FIRESTORE AL CREAR PEDIDO:", err);
       const order = {
         id: String(localOrders.length + 1),
         userId,
@@ -185,18 +188,19 @@ export const OrderService = {
     try {
       const q = query(
         collection(db, 'orders'),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', userId)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(d => {
+      const docs = snapshot.docs.map(d => {
         const data = d.data();
         return {
           id: d.id,
           ...data,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
         };
       });
+      // Ordenar por fecha descendente en memoria
+      return docs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     } catch (err) {
       return localOrders.filter(o => o.userId === userId);
     }
@@ -227,7 +231,7 @@ export const CartService = {
     try {
       const q = query(collection(db, 'users', userId, 'cart'));
       const snapshot = await getDocs(q);
-      const items = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
+      const items = snapshot.docs.map(d => ({ id: d.data().productId, docId: d.id, ...d.data() }));
       const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
       return { items, total, count: items.length };
     } catch (err) {
@@ -239,10 +243,13 @@ export const CartService = {
   // Agregar al carrito
   addItem: async (userId, item) => {
     try {
+      const productId = item.id || item.productId;
+      if (!productId) throw new Error("ID de producto no válido");
+
       // Verificar si ya existe
       const q = query(
         collection(db, 'users', userId, 'cart'),
-        where('productId', '==', item.productId)
+        where('productId', '==', productId)
       );
       const snapshot = await getDocs(q);
 
@@ -256,7 +263,7 @@ export const CartService = {
       } else {
         // Agregar nuevo
         await addDoc(collection(db, 'users', userId, 'cart'), {
-          productId: item.productId,
+          productId: productId,
           name: item.name,
           price: item.price,
           image: item.image,
@@ -264,11 +271,13 @@ export const CartService = {
         });
       }
     } catch (err) {
-      const existing = localCart.items.find(i => i.productId === item.productId);
+      console.error("❌ ERROR EN FIRESTORE AL AGREGAR AL CARRITO:", err);
+      const productId = item.id || item.productId;
+      const existing = localCart.items.find(i => i.productId === productId);
       if (existing) {
         existing.quantity += item.quantity || 1;
       } else {
-        localCart.items.push({ ...item, quantity: item.quantity || 1 });
+        localCart.items.push({ ...item, productId, quantity: item.quantity || 1 });
       }
     }
   },

@@ -22,7 +22,7 @@ export function useCart(userId) {
     setLoading(true);
     try {
       const data = await CartService.get(userId);
-      setItems(data);
+      setItems(data.items || []);
     } catch (err) {
       console.error('Error cargando carrito:', err);
       setError('No se pudo cargar el carrito');

@@ -6,6 +6,9 @@
 
 import { Stack } from 'expo-router';
 
+console.log("--- APP START: CACHE BUSTED V2 ---");
+
+
 export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
